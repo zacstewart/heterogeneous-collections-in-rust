@@ -1,0 +1,6 @@
+[package]
+name = "heterobucket"
+version = "0.1.0"
+authors = ["Zac Stewart <zgstewart@gmail.com>"]
+
+[dependencies]
