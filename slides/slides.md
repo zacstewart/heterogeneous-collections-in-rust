@@ -1,4 +1,28 @@
+theme: Next, 4
+
 # Heterogeneous Collections in Rust
+
+---
+
+![original](me.jpg)
+
+^ Hi, I'm Zac Stewart
+
+^ I work and play here in Atlanta
+
+^ When I'm not writing code, I'm usually riding bikes
+
+---
+
+[.build-lists: true]
+
+## This talk
+
+* Homogeneous Collections
+* Generics
+* Trait Bounds
+* Trait Objects
+* Static vs. Dynamic Dispatch
 
 ---
 
