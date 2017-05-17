@@ -272,3 +272,124 @@ error[E0308]: mismatched types
 - A bucket can still only contain one type of thing that impements `Node`
 
 _Heterogeneous potential, homogeneous usage_
+
+---
+
+## Trait Objects
+
+---
+
+### Bounded generic
+
+```rust
+pub struct Bucket<N: Node> {
+    nodes: HashMap<Address, N>
+}
+
+impl<N: Node> Bucket<N> {
+    pub fn get(&self, address: &Address) -> Option<&N> {
+        self.nodes.get(address)
+    }
+
+    pub fn insert(&mut self, node: N) {
+        self.nodes.insert(node.address(), node);
+    }
+}
+```
+
+^ Let's go back to our generic Bucket for a sec
+^ Let's modify the bucket to store Node trait objects.
+^ We'll get rid of type parameter declarations for N
+^ We'll replace usage of N with Box<Node> (boxed Node)
+
+---
+
+### Trait objects
+
+```rust
+pub struct Bucket {
+    nodes: HashMap<Address, Box<Node>>
+}
+
+impl Bucket {
+    pub fn get(&self, address: &Address) -> Option<&Box<Node>> {
+        self.nodes.get(address)
+    }
+
+    pub fn insert(&mut self, node: Box<Node>) {
+        self.nodes.insert(node.address(), node);
+    }
+}
+```
+
+^ Notice how all the Nodes are wrapped in a Box, which is just a pointer to memory on the heap.
+
+---
+
+```rust
+impl UdpNode {
+    pub fn send(&self, message: &str) {
+        println!("Sending via UDP: {}", message);
+    }
+}
+
+impl BluetoothNode {
+    pub fn send(&self, message: &str) {
+        println!("Sending via Bluetooth: {}", message);
+    }
+}
+```
+
+^ Now lets do the Node structs
+^ We did have specific implementation for different kinds of nodes. If we want to use them as trait objects, we can only use the interface they share as Nodes.
+
+---
+
+```rust
+pub trait Node {
+    fn address(&self) -> Address;
+    fn send(&self, message: &str); // <- move send declaration to here
+}
+
+impl Node for UdpNode {
+    fn address(&self) -> Address {
+        self.address
+    }
+
+    fn send(&self, message: &str) {
+        println!("Sending via UDP: {}", message);
+    }
+}
+
+// Same for BluetoothNode
+```
+
+^ We have to move the send function into the Node trait
+
+---
+
+### We can put both kinds of nodes in the same bucket
+
+```rust
+let mut bucket = Bucket::new();
+
+let udp_node = UdpNode::new(0);
+let bluetooth_node = BluetoothNode::new(1);
+
+bucket.insert(Box::new(udp_node));
+bucket.insert(Box::new(bluetooth_node));
+```
+
+### We can borrow and use both kinds because they `impl Node`
+
+```rust
+bucket.get(&0).unwrap().send("Sending with UDP node");
+bucket.get(&1).unwrap().send("Sending with Bluetooth node");
+```
+
+---
+
+- Buckets can only contain things that `impl Node`
+- Can call methods that `trait Node` declares
+- One bucket can store any mixture of things that `imple Node`
+- Anything borrowed _from_ the bucket must be treated as a `Node`. Compiler can't know what kind of object was actually borrowed, just the trait.
