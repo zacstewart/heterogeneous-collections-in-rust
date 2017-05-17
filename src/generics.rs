@@ -5,18 +5,6 @@ pub struct Bucket<N: Node> {
     nodes: HashMap<Address, N>
 }
 
-pub struct UdpNode {
-    address: Address
-}
-
-pub struct BluetoothNode {
-    address: Address
-}
-
-pub trait Node {
-    fn address(&self) -> Address;
-}
-
 impl<N: Node> Bucket<N> {
     pub fn new() -> Bucket<N> {
         Bucket {
@@ -33,6 +21,18 @@ impl<N: Node> Bucket<N> {
     }
 }
 
+pub struct UdpNode {
+    address: Address
+}
+
+pub struct BluetoothNode {
+    address: Address
+}
+
+pub trait Node {
+    fn address(&self) -> Address;
+}
+
 impl UdpNode {
     pub fn new(address: Address) -> Self {
         Self {
@@ -45,18 +45,6 @@ impl UdpNode {
     }
 }
 
-impl Node for UdpNode {
-    fn address(&self) -> Address {
-        self.address
-    }
-}
-
-impl Node for BluetoothNode {
-    fn address(&self) -> Address {
-        self.address
-    }
-}
-
 impl BluetoothNode {
     pub fn new(address: Address) -> Self {
         Self {
@@ -66,6 +54,18 @@ impl BluetoothNode {
 
     pub fn send(&self, message: &str) {
         println!("Sending via Bluetooth: {}", message);
+    }
+}
+
+impl Node for UdpNode {
+    fn address(&self) -> Address {
+        self.address
+    }
+}
+
+impl Node for BluetoothNode {
+    fn address(&self) -> Address {
+        self.address
     }
 }
 
@@ -100,7 +100,7 @@ mod tests {
         let udp_node = UdpNode::new(0);
         bucket.insert(udp_node);
 
-        let bluetooth_node = BluetoothNode::new(0);
-        bucket.insert(bluetooth_node);
+        //let bluetooth_node = BluetoothNode::new(0);
+        //bucket.insert(bluetooth_node);
     }
 }

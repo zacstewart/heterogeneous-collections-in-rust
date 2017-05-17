@@ -2,7 +2,9 @@
 
 ---
 
-## Homogeneous Collection
+## Homogeneous Collections
+
+---
 
 ```rust
 pub type Address = u64;
@@ -51,7 +53,13 @@ node_ptr.send("hi!")
 
 ---
 
+Simple to implement, but limited to the one type (Node) it was coded for.
+
+---
+
 ## Generics
+
+---
 
 ```rust
 pub struct Bucket<N> {
@@ -84,11 +92,69 @@ impl<N> Bucket<N> {
 }
 ```
 
+---
+
+### We can create a bucket that contains one type of node...
+
+```rust
+let mut udp_bucket = Bucket::new();
+let udp_node = UdpNode::new(0);
+udp_bucket.insert(udp_node, 0);
+```
+
+### Or the other
+
+```rust
+let mut bluetooth_bucket = Bucket::new();
+let bluetooth_node = BluetoothNode::new(1);
+bluetooth_bucket.insert(bluetooth_node, 1);
+```
+---
+
+### But not both
+
+```rust
+let mut bucket = Bucket::new();
+
+let udp_node = UdpNode::new(0);
+let bluetooth_node = BluetoothNode::new(1);
+
+bucket.insert(udp_node, 0);
+bucket.insert(bluetooth_node, 1);
+```
+
+```
+error[E0308]: mismatched types
+   --> src/generics.rs:104:23
+    |
+104 |         bucket.insert(bluetooth_node, 1);
+    |                       ^^^^^^^^^^^^^^ expected struct `generics::UdpNode`,
+    |                                      found struct `generics::BluetoothNode`
+    |
+    = note: expected type `generics::UdpNode`
+               found type `generics::BluetoothNode`
+```
+
+---
+
+- More flexible than homogeneous collection, but may be _too_ flexible:
+
+    ```rust
+    bucket.insert("I'm not a node".to_string(), 0)
+    ```
+
+- Can't use any functions of the node structs since compiler can't know what type they are, other than `N`
+- A bucket can contain _only one_ of any kind of struct
+
 ^ We have to pass in the address explicitly, rather than access it from `node.address` like before. This is because the compiler can't know what fields type N has.
 
 ^ Another consequence is that Bucket can contain ANY kind of object. There is nothing enforcing what N is.
 
-^ We can improve upon that a little with bounds. We can say that all N must implement a trait.
+^ We can improve upon that a little with bounds
+
+---
+
+## Generics Part 2: Trait Bounds
 
 ---
 
@@ -112,12 +178,40 @@ impl Node for BluetoothNode {
 
 ---
 
+### Unbounded
+
+```rust
+pub struct Bucket<N> {
+    nodes: HashMap<Address, N>
+}
+
+impl<N> Bucket<N> {
+    pub fn get(&self, address: &Address) -> Option<&N> {
+        self.nodes.get(address)
+    }
+
+    pub fn insert(&mut self, address: Address, node: N) {
+        self.nodes.insert(address, node);
+    }
+}
+```
+
+^ Let's look at the non-bounded generic Bucket
+
+---
+
+### Bounded
+
 ```rust
 pub struct Bucket<N: Node> {
     nodes: HashMap<Address, N>
 }
 
 impl<N: Node> Bucket<N> {
+    pub fn get(&self, address: &Address) -> Option<&N> {
+        self.nodes.get(address)
+    }
+
     pub fn insert(&mut self, node: N) {
         self.nodes.insert(node.address(), node);
     }
@@ -129,13 +223,17 @@ impl<N: Node> Bucket<N> {
 ---
 
 
+### We can create a bucket that contains one type of node...
+
 ```rust
-// We can create a bucket that contains one type of node...
 let mut udp_bucket = Bucket::new();
 let udp_node = UdpNode::new(0);
 udp_bucket.insert(udp_node);
+```
 
-// Or the other
+### Or the other
+
+```rust
 let mut bluetooth_bucket = Bucket::new();
 let bluetooth_node = BluetoothNode::new(1);
 bluetooth_bucket.insert(bluetooth_node);
@@ -143,8 +241,9 @@ bluetooth_bucket.insert(bluetooth_node);
 
 ---
 
+### But not both
+
 ```rust
-// But not both
 let mut bucket = Bucket::new();
 
 let udp_node = UdpNode::new(0);
@@ -165,3 +264,11 @@ error[E0308]: mismatched types
     = note: expected type `generics::UdpNode`
                found type `generics::BluetoothNode`
 ```
+
+---
+
+- Controlled flexibility: buckets can only contain things that `impl Node`
+- Can call methods that `trait Node` declares: `node.address()`
+- A bucket can still only contain one type of thing that impements `Node`
+
+_Heterogeneous potential, homogeneous usage_
