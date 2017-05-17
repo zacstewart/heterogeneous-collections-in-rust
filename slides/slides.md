@@ -7,7 +7,7 @@
 ---
 
 ```rust
-pub type Address = u64;
+pub type Address = u16;
 
 pub struct Bucket {
     nodes: HashMap<Address, Node>
@@ -53,6 +53,7 @@ node_ptr.send("hi!")
 
 ---
 
+### Homogenous Collections
 Simple to implement, but limited to the one type (Node) it was coded for.
 
 ---
@@ -137,6 +138,8 @@ error[E0308]: mismatched types
 
 ---
 
+### Generics
+
 - More flexible than homogeneous collection, but may be _too_ flexible:
 
     ```rust
@@ -146,9 +149,9 @@ error[E0308]: mismatched types
 - Can't use any functions of the node structs since compiler can't know what type they are, other than `N`
 - A bucket can contain _only one_ of any kind of struct
 
-^ We have to pass in the address explicitly, rather than access it from `node.address` like before. This is because the compiler can't know what fields type N has.
+^ Bucket can contain ANY kind of object. There is nothing enforcing what N is.
 
-^ Another consequence is that Bucket can contain ANY kind of object. There is nothing enforcing what N is.
+^ We have to pass in the address explicitly, rather than access it from `node.address` like before. This is because the compiler can't know what fields type N has.
 
 ^ We can improve upon that a little with bounds
 
@@ -266,6 +269,8 @@ error[E0308]: mismatched types
 ```
 
 ---
+
+### Trait-Bounded Generics
 
 - Controlled flexibility: buckets can only contain things that `impl Node`
 - Can call methods that `trait Node` declares: `node.address()`
@@ -393,3 +398,181 @@ bucket.get(&1).unwrap().send("Sending with Bluetooth node");
 - Can call methods that `trait Node` declares
 - One bucket can store any mixture of things that `imple Node`
 - Anything borrowed _from_ the bucket must be treated as a `Node`. Compiler can't know what kind of object was actually borrowed, just the trait.
+
+---
+
+## Status vs. Dynamic Dispatch
+
+---
+
+```rust
+use std::fmt::Display;
+
+trait Fancy: Display {
+    fn fancy(&self) -> String;
+}
+
+impl Fancy for u8 {
+    fn fancy(&self) -> String {
+        format!("💙 {} 💙", self)
+    }
+}
+
+impl Fancy for u16 {
+    fn fancy(&self) -> String {
+        format!("💚 {} 💚", self)
+    }
+}
+```
+
+---
+
+### Static Dispatch
+
+```rust
+fn print_fancy<T: Fancy>(thing: T) {
+    println!("Static Print Fancy: {}", thing);
+}
+
+let number = 10u8;
+print_fancy(number);
+
+let number = 10u16;
+print_fancy(number);
+```
+
+---
+
+### Static Dispatch
+
+```rust
+fn __print_fancy_for_u8(thing: u8) {
+    println!("Static Print Fancy: {}", thing);
+}
+
+fn __print_fancy_for_u16(thing: u16) {
+    println!("Static Print Fancy: {}", thing);
+}
+
+let number = 10u8;
+__print_fancy_for_u8(number);
+
+let number = 10u16;
+__print_fancy_for_u16(number);
+```
+
+---
+
+### Static Dispatch
+
+- Code path established at compile-time
+- Generally more efficient
+- Can lead to code "bloat" due to specific function for each type
+- Aggressive compiler "optimization" can actually lead to slower performance by bloating instruction cache
+- Rust stdlib prefers static-dispatch when possible
+
+---
+
+### Dynamic Dispatch
+
+```rust
+fn print_fancy(thing: &Fancy) {
+    println!("Dynamic Print Fancy: {}", thing);
+}
+
+let trait_object = &10u8 as &Fancy;
+print_fancy(trait_object);
+
+let number = 10u16;
+print_fancy(&number);
+```
+
+---
+
+### Dynamic Dispatch is Provided by Trait Objects
+
+Trait Objects can be obtained by casting
+
+```rust
+let trait_object = &10u8 as &Fancy;
+print_fancy(trait_object);
+```
+
+...or coercing
+
+```rust
+let number = 10u16;
+print_fancy(&number);
+```
+
+^ AKA type erasure, because we're erasing the compilers knowledge about the specific type of the pointer
+
+---
+
+### Why Pointers?
+
+
+```
+// 8 bits
+let num:   [x|x|x|x|x|x|x|x] = 5;
+print_fancy(_|_|_|_|_|_|_|_)
+
+// 16 bits
+let num:   [x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x] = 5;
+print_fancy(_|_|_|_|_|_|_|_) // can't fit :(
+```
+
+^ `u8` and `u16` take up different amounts of space on the stack. Same function couldn't take raw values for each.
+
+---
+
+### Why Pointers?
+
+```
+// 8 bits
+let num:   [x|x|x|x|x|x|x|x] = 5;
+let ptr:   [size] = &num;
+print_fancy(size)
+
+// 16 bits
+let num =  [x|x|x|x|x|x|x|x|x|x|x|x|x|x|x|x];
+let ptr:   [size] = &num;
+print_fancy(size) // ptrs are all the same size :)
+```
+
+---
+
+### Trait Objects can be other kinds of pointers, too
+
+```rust
+let boxed = Box::new(10u8) as Box<Fancy>;
+let shared_reference = &10u8 as &Fancy;
+let mut_reference = &mut 10u8 as &mut Fancy;
+let raw_pointer = &10u8 as *const Fancy;
+let mut_raw_pointer = &mut 10u8 as *mut Fancy;
+```
+
+---
+
+
+### Object Safety
+
+```rust
+let numbers = vec![1, 2, 3];
+let trait_object = &numbers as &Clone;
+```
+
+```
+--> src/dispatch.rs:61:40
+   |
+61 |         let trait_object = &numbers as &Clone;
+   |                                        ^^^^^^ the trait `std::clone::Clone` cannot be made into an object
+   |
+   = note: the trait cannot require that `Self : Sized`
+```
+
+^ In general, if methods in the trait use Self, the trait cannot be object safe
+
+---
+
+# [fit] ❤
